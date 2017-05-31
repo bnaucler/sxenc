@@ -28,27 +28,32 @@ int die(char *err, int ret) {
 	exit(ret);
 }
 
-char *crypt(char *dst, const char *src, const char *key, size_t sz) {
+char *crypt(char *str, char *key, size_t sz) {
 
-	const char *kptr = key, *sptr = src;
-	unsigned int a = 0;
+	char *kptr = key, *sptr = str;
+	size_t a = 0;
 
 	for(a = 0; a < sz; a++) {
 		if(!kptr) kptr = key;
-		*dst++ = *sptr++ ^ *kptr++;
+		*sptr = *sptr ^ *kptr++;
+		sptr++;
 	}
 
-	*dst = 0;
+	return str;
+}
 
-	return dst;
+char *kfname(char *str) {
+
+	snprintf(str, FNLEN, "%s%c%s", getenv("HOME"), '/', KEYFILE);
+
+	return str;
 }
 
 char *getkey(char *key, int klen) {
 
 	char fname[FNLEN];
-	snprintf(fname, FNLEN, "%s%c%s", getenv("HOME"), '/', KEYFILE);
+	FILE *fp = fopen(kfname(fname), "r");
 
-	FILE *fp = fopen(fname, "r");
 	if(!fp) die("Could not open key file (run with -g (size) to generate)", 4);
 
 	fread(key, 1, klen, fp);
@@ -59,18 +64,15 @@ char *getkey(char *key, int klen) {
 int encloop(FILE *src, FILE *dst, char *key, flag *f) {
 
 	char *buf = calloc(MBCH, sizeof(char));
-	char *enc = calloc(MBCH, sizeof(char));
-
 	size_t len = 0;
 
 	while((len = fread(buf, 1, MBCH, src))) {
-		crypt(enc, buf, key, len);
-		if(f->mfl == M_ENCRYPT) fwrite(enc, 1, len, dst);
-		else printf("%s", enc);
+		crypt(buf, key, len);
+		if(f->mfl == M_ENCRYPT) fwrite(buf, 1, len, dst);
+		else printf("%s", buf);
 	}
 
 	free(buf);
-	free(enc);
 	return 0;
 }
 
@@ -110,25 +112,19 @@ int execop(flag *f, char **argv) {
 int keygen(flag *f, char **argv) {
 
 	time_t t;
-	srand((unsigned) time(&t));
-
-	unsigned int a = 0;
-
-    int klen = (int) strtol(*argv, NULL, 10);
-	if(klen > KEYLEN || klen < 10) klen = KEYLEN;
-
-	char key[(KEYLEN + 1)];
-	int cslen = strlen(CHARSET);
-
-	for(a = 0; a < klen; a++) key[a] = CHARSET[(rand() % cslen)];
+	srand((unsigned int) time(&t));
 
 	char fname[FNLEN];
-	snprintf(fname, FNLEN, "%s%c%s", getenv("HOME"), '/', KEYFILE);
+	int cslen = strlen(CHARSET);
+	unsigned int a = 0;
 
-	FILE *fp = fopen(fname, "w");
+	int klen = (int) strtol(*argv, NULL, 10);
+	if(klen > KEYLEN || klen < 10) klen = KEYLEN;
+
+	FILE *fp = fopen(kfname(fname), "w");
 	if(!fp) die("Could not write to key file", 3);
 
-	fwrite(key, 1, strlen(key) + 1, fp);
+	for(a = 0; a < klen; a++) fputc(CHARSET[(rand() % cslen)], fp);
 
 	return 0;
 }
