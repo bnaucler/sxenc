@@ -5,7 +5,6 @@
 
 #define FEXT ".ap"
 #define KEYFILE ".sxkey"
-
 #define CHARSET "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 #define KEYLEN 512
@@ -28,9 +27,10 @@ int die(char *err, int ret) {
 	exit(ret);
 }
 
-char *crypt(char *str, char *key, size_t sz) {
+char *crypt(char *str, const char *key, size_t sz) {
 
-	char *kptr = key, *sptr = str;
+	char *sptr = str;
+	const char *kptr = key;
 	size_t a = 0;
 
 	for(a = 0; a < sz; a++) {
@@ -52,8 +52,8 @@ char *kfname(char *str) {
 char *getkey(char *key, int klen) {
 
 	char fname[FNLEN];
-	FILE *fp = fopen(kfname(fname), "r");
 
+	FILE *fp = fopen(kfname(fname), "r");
 	if(!fp) die("Could not open key file (run with -g (size) to generate)", 4);
 
 	fread(key, 1, klen, fp);
@@ -63,7 +63,7 @@ char *getkey(char *key, int klen) {
 
 int encloop(FILE *src, FILE *dst, char *key, flag *f) {
 
-	char *buf = calloc(MBCH, sizeof(char));
+	char buf[MBCH];
 	size_t len = 0;
 
 	while((len = fread(buf, 1, MBCH, src))) {
@@ -72,19 +72,16 @@ int encloop(FILE *src, FILE *dst, char *key, flag *f) {
 		else printf("%s", buf);
 	}
 
-	free(buf);
 	return 0;
 }
 
 int execop(flag *f, char **argv) {
 
-	FILE *src, *dst;
-
-	char *key = calloc(KEYLEN + 1, sizeof(char));
+	char key[(KEYLEN + 1)];
 	getkey(key, KEYLEN);
 
 	do {
-		src = fopen(*argv, "r");
+		FILE *src = fopen(*argv, "r");
 		if(!src) return die("Cannot open file", 2);
 
 		if(f->mfl == M_DECRYPT) {
@@ -93,7 +90,7 @@ int execop(flag *f, char **argv) {
 		} else {
 			strncat(*argv, FEXT, FNLEN); // hack
 
-			dst = fopen(*argv, "w");
+			FILE *dst = fopen(*argv, "w");
 			if(!dst) return die("Cannot create encrypted file", 3);
 
 			encloop(src, dst, key, f);
@@ -105,7 +102,6 @@ int execop(flag *f, char **argv) {
 
 	} while(*++argv);
 
-	free(key);
 	return 0;
 }
 
