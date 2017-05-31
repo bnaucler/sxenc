@@ -58,6 +58,7 @@ char *getkey(char *key, int klen) {
 
 	fread(key, 1, klen, fp);
 
+	fclose(fp);
 	return key;
 }
 
@@ -82,7 +83,7 @@ int execop(flag *f, char **argv) {
 
 	do {
 		FILE *src = fopen(*argv, "r");
-		if(!src) return die("Cannot open file", 2);
+		if(!src) die("Cannot open file", 2);
 
 		if(f->mfl == M_DECRYPT) {
 			encloop(src, NULL, key, f);
@@ -91,7 +92,7 @@ int execop(flag *f, char **argv) {
 			strncat(*argv, FEXT, FNLEN); // hack
 
 			FILE *dst = fopen(*argv, "w");
-			if(!dst) return die("Cannot create encrypted file", 3);
+			if(!dst) die("Cannot create encrypted file", 3);
 
 			encloop(src, dst, key, f);
 
@@ -122,6 +123,7 @@ int keygen(flag *f, char **argv) {
 
 	for(a = 0; a < klen; a++) fputc(CHARSET[(rand() % cslen)], fp);
 
+	fclose(fp);
 	return 0;
 }
 
@@ -147,17 +149,12 @@ void setfl(char *arg, flag *f) {
 
 int main(int argc, char **argv) {
 
-	int ret = 0;
-
-	flag *f = calloc(1, sizeof(flag));
+	flag f;
 
 	if(argc < 2 || (argc == 2 && argv[1][0] == '-'))
 		die("Not enough arguments", 1);
-	else if (argv[1][0] == '-') setfl(argv++[1], f);
+	else if (argv[1][0] == '-') setfl(argv++[1], &f);
 
-	if(f->mfl == M_GENKEY) ret =  keygen(f, ++argv);
-	else ret = execop(f, ++argv);
-
-	free(f);
-	return ret;
+	if(f.mfl == M_GENKEY) return keygen(&f, ++argv);
+	else return execop(&f, ++argv);
 }
